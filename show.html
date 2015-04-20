@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title></title>
+	<meta name="renderer" content="webkit|ie-comp|ie-stand">
+	<meta http-equiv="Content-Type" contect="text/html";charset=utf-8">
+	<meta name="viewport" id="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0">
+	<style type="text/css">
+		body{
+			background: url('bgimg.jpg') repeat;
+			font-size:0.75em;
+			-moz-user-select:none;
+		}
+		#h{
+			position: absolute;
+			left: 20%;
+			top: 30%;
+			width: 60%;
+			border: 1px #888888 dashed;
+			border-radius: 5px;
+		}
+		#h_body{
+			padding: 20px;
+			display: block;
+			text-indent: 2em;
+			font-size: 1.7em;
+		}
+		#h_body a{
+			text-decoration: none;
+		}
+		#h_from{
+			padding: 20px;
+			margin-top: 20px;
+			font-size: 1.5em;
+			text-align: right;
+		}
+		#h_body a, #h_from{
+			color: #CCCCCC;
+		}
+		@media screen and (max-width: 600px) {
+			#hitokoto {
+				left: -1px;
+				width: 100%;
+			}
+		}
+	</style>
+</head>
+<body>
+	{% if user %}
+	<div id='h'>
+		<div id='h_body'>
+			<a href='http://www.zhihu.com/people/{{ user.spaceName }}'>{{ user.bio }}</a>
+		</div>
+		<div id='h_from'>---- &lt;{{ user.name }}&gt;</div>
+	</div>
+	{% end %}
+</body>
+</html>

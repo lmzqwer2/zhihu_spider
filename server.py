@@ -16,6 +16,7 @@ from lsqlite import db
 from models import User, UserList
 from tornado.options import define, options
 
+define('workspace', default=path.dirname(path.realpath(__file__)), help='work folder')
 define('database', default=path.join(path.dirname(path.realpath(__file__)), 'zdb.db'), help='Database stroage all the infomation')
 define('port', default='4323', help="Server listen on")
 define('timeout', default=20.0, help='User retry time')
@@ -24,7 +25,15 @@ define('flushtime', default=10.0, help='User lock time')
 class BaseHandler(tornado.web.RequestHandler):
     pass
 
-class MainHandler(BaseHandler):
+class ShowHandler(BaseHandler):
+    def get(self):
+        u = User.randomGet()
+        cnt = 0
+        while u.bio=='' and cnt < 5:
+            u = User.randomGet()
+        self.render('show.html', user=u)
+
+class StatusHandler(BaseHandler):
     def get(self):
         ulc = UserList.count_all()
         uc = User.count_all()
@@ -35,9 +44,6 @@ class MainHandler(BaseHandler):
         for i in range(0, 6):
             ultc = UserList.count_by('where tryTime==?', i)
             self.write(' (%d _ %d) ' % (i, ultc))
-        u = User.randomGet()
-        if u is not None:
-            self.write("<br/>%s   ---- %s" % (u.bio, u.name))
 
 class NewHandler(BaseHandler):
     def post(self):
@@ -111,9 +117,11 @@ class NotFoundHandler(BaseHandler):
         raise tornado.web.HTTPError(404)
 
 app = tornado.web.Application([
-    (r"/", MainHandler),
+    (r"/", ShowHandler),
+    (r"/status", StatusHandler),
     (r"/get", GetHandler),
     (r"/new", NewHandler),
+    (r"/(bgimg.jpg)", tornado.web.StaticFileHandler, {'path':options.workspace}),
     (r"/.*", NotFoundHandler),
 ])
 

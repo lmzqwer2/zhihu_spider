@@ -224,10 +224,12 @@ if (__name__ == '__main__'):
     sys.setdefaultencoding('utf-8')
     global targetServer
     parser = argparse.ArgumentParser()
-    parser.add_argument('-a', '--address', default='localhost:4323', help='The address of the server')
+    parser.add_argument('-a', '--address', default='http://localhost:4323', help='The address of the server')
     args = parser.parse_args()
     targetServer = args.address
     if not targetServer.endswith('/'):
         targetServer += '/'
+    if not targetServer.startswith('http://'):
+        targetServer = 'http://' + targetServer
     print targetServer
     run()
