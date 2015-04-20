@@ -42,8 +42,7 @@ class User(Model):
     def randomGet(cls):
         nid = Uid.next_id()
         if nid>0:
-            uid = random.randint(1, nid)
-            print uid, nid
+            uid = random.randint(1, nid) -1
             return cls.find_first('where myId=?', uid)
         else:
             return None
@@ -58,7 +57,7 @@ class UserList(Model):
     __table__ = 'userlist'
 
     spaceName = StringField(primary_key=True,ddl='varchar(40)')
-    createdAt = FloatField(updatable=False, default=time.time)
+    createdAt = FloatField(default=time.time)
     tryTime = IntegerField(defult=0)
     last = FloatField(default=0)
 
