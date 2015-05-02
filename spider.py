@@ -10,7 +10,7 @@ Read the volcabulary from shanbay.com
 import cookielib, urllib2, urllib, Cookie, re, time, argparse
 from os import path
 from lsqlite import db, orm
-from models import User, Uid
+from models import User, UserList
 from bs4 import BeautifulSoup as bs
 from IPython import embed
 try:
@@ -49,6 +49,7 @@ def getResponse(url, data={}, method=lambda: 'GET', **kw):
     return response
 
 targetServer = 'http://localhost:4323/'
+check = 0
 
 def postResult(l, t):
     url = targetServer + 'get'
@@ -111,8 +112,17 @@ def findAllPeople(html, sname):
         space_match = space_pattern.match(linker['href'])
         if space_match:
             space_name = space_match.group(1)
-            l['spaceName'] = space_name
-            d = newSpaceName(l)
+            ul = UserList.get(space_name)
+            u = User.find_first('where spaceName=?', space_name)
+            if u is None and ul is None:
+                l['spaceName'] = space_name
+                d = newSpaceName(l)
+                if check:
+                    print space_name, d
+            else:
+                if check:
+                    print space_name, "exist."
+                
  
 followee_headers = {
     'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1581.2 Safari/537.36',
@@ -219,14 +229,21 @@ def run():
 #embed()
 
 if (__name__ == '__main__'):
+    global targetServer
+    global check
     import sys
     reload(sys)
     sys.setdefaultencoding('utf-8')
-    global targetServer
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--address', default='http://localhost:4323', help='The address of the server')
+    parser.add_argument('-d', '--database', default='zdb.db', help='to use local database to check the data conflict')
+    parser.add_argument('-c', '--check', default=0, help='to use local database to check the data conflict')
     args = parser.parse_args()
     targetServer = args.address
+    dbname = args.database
+    check = args.check
+    print dbname
+    db.create_engine(dbname);
     if not targetServer.endswith('/'):
         targetServer += '/'
     if not targetServer.startswith('http://'):
