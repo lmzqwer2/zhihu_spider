@@ -7,7 +7,7 @@ __author__ = 'lmzqwer2'
 Read the volcabulary from shanbay.com
 '''
 
-import cookielib, urllib2, urllib, Cookie, re, time, argparse
+import cookielib, urllib2, urllib, Cookie, re, time, argparse, gzip, StringIO
 from os import path
 from lsqlite import db, orm
 from models import User, UserList
@@ -27,9 +27,9 @@ headers = {
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Ubuntu Chromium/41.0.2272.76 Chrome/41.0.2272.76 Safari/537.36',
     'Referer': 'http://www.zhihu.com/',
-    'Accept-Encoding': 'deflate',
+    'Accept-Encoding': 'gzip, deflate',
     'Accept-Language': 'zh-CN,zh;q=0.8',
-    'Cookie': 'q_c1=050daf1212554da3bdd5801a41cb907f|1428635070000|1428635070000; z_c0="QUtCQXVFS2J6UWNYQUFBQVlRSlZUYl9LVGxVSVlid0xrWUZySjV6UHl2U3JwQjNQTjhreE9RPT0=|1428635071|9e86871527a7183b7894cec44755fda70aa1250b"; _xsrf=84e730b281ae1b2f00b65b95e7b04ba9'
+    'Cookie': ' _za=66e5f568-83fc-4cee-99a5-6f125f1477e5; q_c1=3280938f2b694f7ea333bba230caa553|1430745348000|1430745348000; z_c0="QUtCQXVFS2J6UWNYQUFBQVlRSlZUUVQtYmxYcXFvOElTM0tzWmhfME42ZVpPVGszZTVEbXpBPT0=|1430745348|a4e4b5d3aae27b201a1d02a27f1915faaf3215b5"; _xsrf=e4556d2cfc929adb16a3742cba31c6b2'
 }
 #opener.handle_open["http"][0].set_http_debuglevel(1)
 
@@ -46,7 +46,14 @@ def getResponse(url, data={}, method=lambda: 'GET', **kw):
     for name, values in kw.items():
         request.add_header(name, values)
     response = opener.open(request)
-    return response
+    if response.info().get('Content-Encoding') == 'gzip': # gzip
+        content = response.read()
+        data    = StringIO.StringIO(content)
+        gzipper = gzip.GzipFile(fileobj=data)
+        html    = gzipper.read()
+    else: # normal page
+        html = response.read()
+    return html
 
 targetServer = 'http://localhost:4323/'
 check = 0
@@ -60,7 +67,7 @@ def postResult(l, t):
     except Exception, e:
         print e
         return {'code': 2, 'msg':'Network Error'}
-    return json.loads(response.read())
+    return json.loads(response)
 
 def nexSpaceName():
     t = targetServer + 'get'
@@ -69,7 +76,7 @@ def nexSpaceName():
         response = getResponse(t)
     except:
         return {'code': 2, 'msg':'Network Error'}
-    return json.loads(response.read())
+    return json.loads(response)
     
 def newSpaceName(l):
     url = targetServer + 'new'
@@ -77,7 +84,7 @@ def newSpaceName(l):
         response = getResponse(url, l, lambda: 'POST')
     except:
         return {'code': 2, 'msg':'Network Error'}
-    return json.loads(response.read())
+    return json.loads(response)
 
 uid_pattern = re.compile('^/inbox/(.*)$')
 
@@ -157,7 +164,7 @@ def searchUser(space_name, t):
         except:
             print 'What\'s wrong with your network?'
             continue
-        html = bs(response.read())
+        html = bs(response, from_encoding="UTF-8")
         L = merge(L, UserInfo(html))
         findAllPeople(html, space_name)
 
@@ -184,7 +191,7 @@ def searchUser(space_name, t):
             post_header['Referer'] = follow
             try:
                 response = getResponse(listurl, post_data, lambda: 'POST', **post_header)
-                data = json.loads(response.read())
+                data = json.loads(response)
                 if data.get('r',1)==0:
                     html = bs(''.join(data['msg']))
                     findAllPeople(html, space_name)
