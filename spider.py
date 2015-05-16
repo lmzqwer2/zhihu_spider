@@ -129,7 +129,6 @@ def findAllPeople(html, sname):
             else:
                 if check:
                     print space_name, "exist."
-                
  
 followee_headers = {
     'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1581.2 Safari/537.36',
@@ -153,6 +152,24 @@ def merge(pre, now):
         if key not in tmp:
             tmp[key] = val
     return tmp
+
+def searchUserTable(i, params, _xsrf, refurl, listurl, space_name):
+    params['offset'] = i * 20
+    post_data = {
+        'method': 'next',
+        'params': json.dumps(params),
+        '_xsrf': _xsrf,
+    }
+    post_header = followee_headers
+    post_header['Referer'] = refurl
+    try:
+        response = getResponse(listurl, post_data, lambda: 'POST', **post_header)
+        data = json.loads(response)
+        if data.get('r',1)==0:
+            html = bs(''.join(data['msg']))
+            findAllPeople(html, space_name)
+    except Exception, e:
+        print 'ERR:', e
 
 def searchUser(space_name, t):
     L = {}
@@ -181,24 +198,8 @@ def searchUser(space_name, t):
         load_times = int(num_followees) / 20 +1
 
         for i in range(1,load_times):
-            params['offset'] = i * 20
-            post_data = {
-                'method': 'next',
-                'params': json.dumps(params),
-                '_xsrf': _xsrf,
-            }
-            post_header = followee_headers
-            post_header['Referer'] = follow
-            try:
-                response = getResponse(listurl, post_data, lambda: 'POST', **post_header)
-                data = json.loads(response)
-                if data.get('r',1)==0:
-                    html = bs(''.join(data['msg']))
-                    findAllPeople(html, space_name)
-                else:
-                    break;
-            except Exception, e:
-                print 'ERR:', e
+            searchUserTable(i, params, _xsrf, follow, listurl, space_name)
+
     L['spaceName'] = space_name
     data = postResult(L, t)
     if data.get('code',1)!=0:
@@ -207,19 +208,14 @@ def searchUser(space_name, t):
 #embed()
 
 def run():
-#    import sys
-#    reload(sys)
-#    sys.setdefaultencoding('utf-8')
-#    headers['Cookie'] = ''
-#    searchFromFollwee('zhao-yue-qi-88')
-#    searchFromZhihu('zenozeng')
-#    searchFromFollowee('edward-mj')
-
-    while True:
+    nowdir = path.abspath(__file__).strip(__file__)
+    stopfile = path.join(nowdir, 'spiderstop')
+    while not path.exists(stopfile):
         data = nexSpaceName()
         if data.get('code',2) != 0:
             print data.get('code'), data.get('msg')
             if data.get('code')==-1:
+                print 'Server stop.'
                 break
             time.sleep(1)
             continue
@@ -232,10 +228,12 @@ def run():
             continue
         print 'SEARCH: %s' % now
         searchUser(now, t)
+    if path.exists(stopfile):
+        print 'File stop.'
 
 #embed()
 
-if (__name__ == '__main__'):
+def load():
     global targetServer
     global check
     import sys
@@ -256,4 +254,7 @@ if (__name__ == '__main__'):
     if not targetServer.startswith('http://'):
         targetServer = 'http://' + targetServer
     print targetServer
+
+if (__name__ == '__main__'):
+    load()
     run()
