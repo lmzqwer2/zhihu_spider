@@ -65,7 +65,7 @@ def postResult(l, t):
     try:
         response = getResponse(url, l, lambda: 'POST')
     except Exception, e:
-        print e
+        print 'ERR: nexSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
     return json.loads(response)
 
@@ -74,7 +74,8 @@ def nexSpaceName():
     print t
     try:
         response = getResponse(t)
-    except:
+    except Exception, e:
+        print 'ERR: nexSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
     return json.loads(response)
     
@@ -82,7 +83,8 @@ def newSpaceName(l):
     url = targetServer + 'new'
     try:
         response = getResponse(url, l, lambda: 'POST')
-    except:
+    except Exception, e:
+        print 'ERR: nexSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
     return json.loads(response)
 
@@ -111,7 +113,7 @@ def UserInfo(html):
 
 space_pattern = re.compile('^/people/(.*)$')
 
-def findAllPeople(html, sname):
+def findAllPeople(types, i, times, html, sname):
     followees = html.find_all('div', class_='zm-profile-section-item')
     l = {'nowSpaceName': sname, 'spaceName':''}
     for people in followees:
@@ -125,10 +127,10 @@ def findAllPeople(html, sname):
                 l['spaceName'] = space_name
                 d = newSpaceName(l)
                 if check:
-                    print space_name, d
+                    print types, i, times, space_name, d
             else:
                 if check:
-                    print space_name, "exist."
+                    print types, i, times, space_name, "exist."
  
 followee_headers = {
     'User-Agent':'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1581.2 Safari/537.36',
@@ -153,7 +155,27 @@ def merge(pre, now):
             tmp[key] = val
     return tmp
 
-def searchUserTable(i, params, _xsrf, refurl, listurl, space_name):
+class zhihuRequestLock(object):
+    '''
+    calc the number of request to zhihu
+    '''
+    num = 0
+    @classmethod
+    def check(cls):
+        '''
+        Do something in gevent mode but no use in normal mode.
+        '''
+        pass
+
+    @classmethod
+    def inc(cls):
+        cls.num += 1
+
+    @classmethod
+    def dec(cls):
+        cls.num -= 1
+
+def searchUserTable(types, i, load_times, params, _xsrf, refurl, listurl, space_name):
     params['offset'] = i * 20
     post_data = {
         'method': 'next',
@@ -162,18 +184,30 @@ def searchUserTable(i, params, _xsrf, refurl, listurl, space_name):
     }
     post_header = followee_headers
     post_header['Referer'] = refurl
+    response = None
     try:
+        zhihuRequestLock.check()
+        zhihuRequestLock.inc()
+        if check:
+            print 'Search: table', i, 'Co-search:', zhihuRequestLock.num
         response = getResponse(listurl, post_data, lambda: 'POST', **post_header)
+    except Exception, e:
+        print 'ERR: UserTable', e, listurl
+    finally:
+        zhihuRequestLock.dec()
+    if response is not None:
         data = json.loads(response)
         if data.get('r',1)==0:
             html = bs(''.join(data['msg']))
-            findAllPeople(html, space_name)
-    except Exception, e:
-        print 'ERR:', e
+            findAllPeople(types, i, load_times, html, space_name)
+
+def searchNextFollow(times, params, _xsrf, refurl, listurl, space_name):
+    for i in range(1,times):
+        searchUserTable(1, i+1, times, params, _xsrf, refurl, listurl, space_name)
 
 def searchUser(space_name, t):
     L = {}
-    for url in ['followees','followers']:
+    for url, code in zip(['followees','followers'], [6, 7]):
         follow = zhihu_people + space_name + '/' + url
         listurl = 'http://www.zhihu.com/node/Profile'+url.capitalize()+'ListV2'
         try:
@@ -183,7 +217,6 @@ def searchUser(space_name, t):
             continue
         html = bs(response, from_encoding="UTF-8")
         L = merge(L, UserInfo(html))
-        findAllPeople(html, space_name)
 
         listdiv = html.find('div', class_='zh-general-list')
         if listdiv is None:
@@ -193,18 +226,19 @@ def searchUser(space_name, t):
         _xsrf = html.find('input', {'name':'_xsrf'})['value']
 
         items = html.find_all('a', class_='item')
-        followee_status = items[6]
+        followee_status = items[code]
         num_followees = followee_status.find('strong').text
         load_times = int(num_followees) / 20 +1
 
-        for i in range(1,load_times):
-            searchUserTable(i, params, _xsrf, follow, listurl, space_name)
+        findAllPeople(0, 1, load_times, html, space_name)
+        
+        if load_times>1:
+            searchNextFollow(load_times, params, _xsrf, follow, listurl, space_name)
 
     L['spaceName'] = space_name
     data = postResult(L, t)
     if data.get('code',1)!=0:
         print space_name, data.get('code', 1), data.get('msg', '')
-        pass        
 #embed()
 
 def run():
