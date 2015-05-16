@@ -7,7 +7,7 @@ __author__ = 'lmzqwer2'
 Models for user, blog, comment.
 '''
 
-import time, uuid, random
+import time, uuid, random, thread
 
 from lsqlite import db
 from lsqlite.orm import Model, StringField, BooleanField, FloatField, TextField, IntegerField
@@ -47,7 +47,6 @@ class User(Model):
         else:
             return None
 
-
     @classmethod
     def init(cls):
         Uid.tot = cls.count_all()
@@ -60,6 +59,39 @@ class UserList(Model):
     createdAt = FloatField(default=time.time)
     tryTime = IntegerField(defult=0)
     last = FloatField(default=0)
+
+    listbuffer = []
+    querystr = ''
+    querylist = [0]
+    querylimit = 0
+    lock = thread.allocate_lock()
+    @classmethod
+    def queryset(cls, query, *args):
+        cls.querystr = query
+        cls.querylist = [x for x in args]
+
+    @classmethod
+    def limitset(cls, limit):
+        cls.querylimit = limit
+
+    @classmethod
+    def bufferinit(cls):
+        cls.lock.acquire()
+        l = [ x for x in cls.querylist]
+        l.append(cls.querylimit)
+        cls.listbuffer = cls.find_by(cls.querystr + ' limit ?', *l)
+        cls.lock.release()
+
+    @classmethod
+    def queryget(cls):
+        if len(cls.listbuffer)==0:
+            cls.bufferinit()
+        if len(cls.listbuffer)==0:
+            return None
+        cls.lock.acquire()
+        ans = cls.listbuffer.pop()
+        cls.lock.release()
+        return ans
 
 if __name__ == '__main__':
     import sys

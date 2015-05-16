@@ -19,6 +19,7 @@ from tornado.options import define, options
 define('workspace', default=path.dirname(path.realpath(__file__)), help='work folder')
 define('database', default=path.join(path.dirname(path.realpath(__file__)), 'zdb.db'), help='Database stroage all the infomation')
 define('port', default='4323', help="Server listen on")
+define('buffernum', default=20, help="length of buffer list")
 define('timeout', default=20.0, help='User retry time')
 define('flushtime', default=10.0, help='User lock time')
 
@@ -67,30 +68,20 @@ class NewHandler(BaseHandler):
                     ul.last = time.time()
                     ul.update()
 
-lock = thread.allocate_lock()
-
 class GetHandler(BaseHandler):
     def get(self):
-        if UserList.count_all()==0:
-            self.write(json.dumps({'code':-1, 'msg':'No user in list'}))
+        UserList.querylist[0] = time.time() - options.timeout
+        ul = UserList.queryget()
+        if ul is None:
+            self.write(json.dumps({'code': -1, 'msg': 'None to pop'}))
         else:
-            global lock
-            lock.acquire()
-            nt = time.time()
-            ul = UserList.find_first('where last<? and tryTime<5', nt-options.timeout)
-            if ul is None:
-                ul = UserList.find_first('where last<?', nt-options.timeout)
-            if ul is None:
-                self.write(json.dumps({'code': 1, 'msg': 'None to pop'}))
-            else:
-                ul.last = time.time()
-                ul.createdAt = ul.last
-                ul.tryTime += 1
-                ul.update()
-                print u'GET: SpaceName=%s, TryTime=%d, last=%f' % (ul.spaceName, ul.tryTime, ul.last)
-                output = {'spacename': ul.spaceName, 't': str(ul.createdAt)}
-                self.write(json.dumps({'code': 0, 'msg': 'Succeed', 'info': json.dumps(output)}))
-            lock.release()
+            ul.last = time.time()
+            ul.createdAt = ul.last
+            ul.tryTime += 1
+            ul.update()
+            print u'GET: SpaceName=%s, TryTime=%d, last=%f' % (ul.spaceName, ul.tryTime, ul.last)
+            output = {'spacename': ul.spaceName, 't': str(ul.createdAt)}
+            self.write(json.dumps({'code': 0, 'msg': 'Succeed', 'info': json.dumps(output)}))
 
     def post(self):
         t = self.get_argument('t')
@@ -101,14 +92,11 @@ class GetHandler(BaseHandler):
         ul = UserList.get(spacename)
         u = User.get(hashId)
         if t is not None and ul is not None and str(ul.createdAt)==t and u is None and len(hashId)==32:
-            global lock
-            lock.acquire()
             nu = User(hashId=hashId, name=name, spaceName=spacename, bio=bio)
             print u'INS: name=%s, hashId=%s, spaceName=%s, last=%f, tryTime=%d\nBio=%s' % (name, hashId, spacename, ul.last, ul.tryTime, bio)
             ul.delete()
             nu.check_insert()
             self.write(json.dumps({'code': 0, 'msg':'Succeed'}))
-            lock.release()
         else:
             self.write(json.dumps({'code': 1, 'msg':'Error'}))
 
@@ -134,5 +122,7 @@ if __name__ == "__main__":
     tornado.options.parse_command_line()
     db.create_engine(options.database)
     User.init()
+    UserList.queryset('where last<? and tryTime<5', time.time() - options.timeout)
+    UserList.limitset(options.buffernum)
     app.listen(options.port)
     tornado.ioloop.IOLoop.instance().start()

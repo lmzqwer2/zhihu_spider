@@ -70,10 +70,10 @@ def postResult(l, t):
     return json.loads(response)
 
 def nexSpaceName():
-    t = targetServer + 'get'
-    print t
+    url = targetServer + 'get'
+    print url
     try:
-        response = getResponse(t)
+        response = getResponse(url)
     except Exception, e:
         print 'ERR: nexSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
@@ -212,8 +212,8 @@ def searchUser(space_name, t):
         listurl = 'http://www.zhihu.com/node/Profile'+url.capitalize()+'ListV2'
         try:
             response = getResponse(follow)
-        except:
-            print 'What\'s wrong with your network?'
+        except Exception, e:
+            print 'ERR: searchUser', e, follow
             continue
         html = bs(response, from_encoding="UTF-8")
         L = merge(L, UserInfo(html))
