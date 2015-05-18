@@ -15,11 +15,18 @@ def newSearchNextFollow(load_times, params, _xsrf, refurl, listurl, space_name):
 spider.searchNextFollow = newSearchNextFollow
 
 @classmethod
-def newLockCheck(cls):
+def newCheckGevent(cls):
     while cls.num >= 10:
         gevent.sleep(0)
 
-spider.zhihuRequestLock.checkgevent = newLockCheck
+spider.zhihuRequestLock.checkgevent = newCheckGevent
+
+@classmethod
+def newCheckLmin(cls):
+    while cls.numlmin >= 10:
+        gevent.sleep(0)
+
+spider.zhihuRequestLock.checklmin = newCheckLmin
 
 from spider import *
 

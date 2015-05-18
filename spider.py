@@ -63,30 +63,42 @@ def postResult(l, t):
     l['t'] = t
     print l
     try:
+        zhihuRequestLock.checklmin()
+        zhihuRequestLock.inclmin()
         response = getResponse(url, l, lambda: 'POST')
     except Exception, e:
         print 'ERR: nexSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
+    finally:
+        zhihuRequestLock.declmin()
     return json.loads(response)
 
 def nexSpaceName():
     url = targetServer + 'get'
     print url
     try:
+        zhihuRequestLock.checklmin()
+        zhihuRequestLock.inclmin()
         response = getResponse(url)
     except Exception, e:
         print 'ERR: nexSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
+    finally:
+        zhihuRequestLock.declmin()
     return json.loads(response)
     
 def newSpaceName(l):
     url = targetServer + 'new'
     try:
+        zhihuRequestLock.checklmin()
+        zhihuRequestLock.inclmin()
         response = getResponse(url, l, lambda: 'POST')
     except Exception, e:
         zhihuRequestLock.failed()
         print 'ERR: newSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
+    finally:
+        zhihuRequestLock.declmin()
     return json.loads(response)
 
 uid_pattern = re.compile('^/inbox/(.*)$')
@@ -161,10 +173,13 @@ class zhihuRequestLock(object):
     calc the number of request to zhihu
     '''
     num = 0
+    numlmin = 0
     fail = 0
     @classmethod
     def check(cls):
-        return cls.fail>=10
+        if cls.fail>=10:
+            return 1
+        return 0
     
     @classmethod
     def checkgevent(cls):
@@ -180,6 +195,21 @@ class zhihuRequestLock(object):
     @classmethod
     def dec(cls):
         cls.num -= 1
+
+    @classmethod
+    def checklmin(cls):
+        '''
+        Do something in gevent mode but no use in normal mode.
+        '''
+        pass
+
+    @classmethod
+    def inclmin(cls):
+        cls.numlmin += 1
+
+    @classmethod
+    def declmin(cls):
+        cls.numlmin -= 1
 
     @classmethod
     def failed(cls):
