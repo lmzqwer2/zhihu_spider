@@ -84,7 +84,7 @@ def newSpaceName(l):
     try:
         response = getResponse(url, l, lambda: 'POST')
     except Exception, e:
-        zhihuRequestLock.fail()
+        zhihuRequestLock.failed()
         print 'ERR: newSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
     return json.loads(response)
