@@ -45,7 +45,7 @@ def getResponse(url, data={}, method=lambda: 'GET', **kw):
             request.add_header(name, values)
     for name, values in kw.items():
         request.add_header(name, values)
-    response = opener.open(request)
+    response = opener.open(request, timeout = 60)
     if response.info().get('Content-Encoding') == 'gzip': # gzip
         content = response.read()
         data    = StringIO.StringIO(content)
@@ -84,7 +84,8 @@ def newSpaceName(l):
     try:
         response = getResponse(url, l, lambda: 'POST')
     except Exception, e:
-        print 'ERR: nexSpacename', e, url
+        zhihuRequestLock.fail()
+        print 'ERR: newSpacename', e, url
         return {'code': 2, 'msg':'Network Error'}
     return json.loads(response)
 
@@ -160,8 +161,13 @@ class zhihuRequestLock(object):
     calc the number of request to zhihu
     '''
     num = 0
+    fail = 0
     @classmethod
     def check(cls):
+        return cls.fail>=10
+    
+    @classmethod
+    def checkgevent(cls):
         '''
         Do something in gevent mode but no use in normal mode.
         '''
@@ -175,6 +181,14 @@ class zhihuRequestLock(object):
     def dec(cls):
         cls.num -= 1
 
+    @classmethod
+    def failed(cls):
+        cls.fail += 1
+
+    @classmethod
+    def clear(cls):
+        cls.fail = 0
+
 def searchUserTable(types, i, load_times, params, _xsrf, refurl, listurl, space_name):
     params['offset'] = i * 20
     post_data = {
@@ -185,17 +199,20 @@ def searchUserTable(types, i, load_times, params, _xsrf, refurl, listurl, space_
     post_header = followee_headers
     post_header['Referer'] = refurl
     response = None
+    if zhihuRequestLock.check()!=0:
+        return 
     try:
-        zhihuRequestLock.check()
+        zhihuRequestLock.checkgevent()
         zhihuRequestLock.inc()
         if check:
             print 'Search: table', i, 'Co-search:', zhihuRequestLock.num
         response = getResponse(listurl, post_data, lambda: 'POST', **post_header)
     except Exception, e:
+        zhihuRequestLock.failed()
         print 'ERR: UserTable', e, listurl
     finally:
         zhihuRequestLock.dec()
-    if response is not None:
+    if response is not None and zhihuRequestLock.check()==0:
         data = json.loads(response)
         if data.get('r',1)==0:
             html = bs(''.join(data['msg']))
@@ -236,9 +253,12 @@ def searchUser(space_name, t):
             searchNextFollow(load_times, params, _xsrf, follow, listurl, space_name)
 
     L['spaceName'] = space_name
-    data = postResult(L, t)
-    if data.get('code',1)!=0:
-        print space_name, data.get('code', 1), data.get('msg', '')
+    if zhihuRequestLock.check()==0:
+        data = postResult(L, t)
+        if data.get('code',1)!=0:
+            print space_name, data.get('code', 1), data.get('msg', '')
+    else:
+        print "Error exit of: %s" % space_name
 #embed()
 
 def run():
@@ -261,6 +281,7 @@ def run():
             time.sleep(1)
             continue
         print 'SEARCH: %s' % now
+        zhihuRequestLock.clear()
         searchUser(now, t)
     if path.exists(stopfile):
         print 'File stop.'

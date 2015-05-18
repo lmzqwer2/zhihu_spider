@@ -19,7 +19,7 @@ def newLockCheck(cls):
     while cls.num >= 10:
         gevent.sleep(0)
 
-spider.zhihuRequestLock.check = newLockCheck
+spider.zhihuRequestLock.checkgevent = newLockCheck
 
 from spider import *
 
