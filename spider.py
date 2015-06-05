@@ -29,7 +29,7 @@ headers = {
     'Referer': 'http://www.zhihu.com/',
     'Accept-Encoding': 'gzip, deflate',
     'Accept-Language': 'zh-CN,zh;q=0.8',
-    'Cookie': ' _za=66e5f568-83fc-4cee-99a5-6f125f1477e5; q_c1=3280938f2b694f7ea333bba230caa553|1430745348000|1430745348000; z_c0="QUtCQXVFS2J6UWNYQUFBQVlRSlZUUVQtYmxYcXFvOElTM0tzWmhfME42ZVpPVGszZTVEbXpBPT0=|1430745348|a4e4b5d3aae27b201a1d02a27f1915faaf3215b5"; _xsrf=e4556d2cfc929adb16a3742cba31c6b2'
+    'Cookie': 'q_c1=9cb8eeda34a04dd99d3d4916c060d6c6|1433500180000|1409155640000; __utma=51854390.1854322112.1433500875.1433500875.1433500875.1; _za=e3caf6e5-727a-447b-83fc-97bdc39c8c46; __utmz=51854390.1433500875.1.1.utmcsr=(direct)|utmccn=(direct)|utmcmd=(none); __utmb=51854390.4.10.1433500875; __utmc=51854390; c_c=c60f0cdc0b6d11e59439b083fee931c3; z_c0="QUtCQXVFS2J6UWNYQUFBQVlRSlZUUmNIbVZYZ01PeVZ4QWJFX0xacnlGZFplbExwN1JKUlVRPT0=|1433500183|03f55046c8c386acb65cc81000e036013448b9cc"; _xsrf=7aff891bbc39641371dc1a7479614597; __utmv=51854390.100--|2=registration_date=20150320=1^3=entry_date=20140828=1; __utmt=1'
 }
 #opener.handle_open["http"][0].set_http_debuglevel(1)
 
@@ -67,7 +67,7 @@ def postResult(l, t):
         zhihuRequestLock.inclmin()
         response = getResponse(url, l, lambda: 'POST')
     except Exception, e:
-        print 'ERR: nexSpacename', e, url
+        print 'ERR: postResult', e, url
         return {'code': 2, 'msg':'Network Error'}
     finally:
         zhihuRequestLock.declmin()
@@ -283,7 +283,7 @@ def searchUser(space_name, t):
             searchNextFollow(load_times, params, _xsrf, follow, listurl, space_name)
 
     L['spaceName'] = space_name
-    if zhihuRequestLock.check()==0:
+    if zhihuRequestLock.check()==0 and 'hashId' in L:
         data = postResult(L, t)
         if data.get('code',1)!=0:
             print space_name, data.get('code', 1), data.get('msg', '')

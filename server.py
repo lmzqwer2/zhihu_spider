@@ -124,5 +124,6 @@ if __name__ == "__main__":
     User.init()
     UserList.queryset('where last<? and tryTime<5', time.time() - options.timeout)
     UserList.limitset(options.buffernum)
-    app.listen(options.port)
+    print 'listen on: %d' % int(options.port)
+    app.listen(int(options.port))
     tornado.ioloop.IOLoop.instance().start()
